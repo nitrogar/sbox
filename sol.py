@@ -1,95 +1,6 @@
 
 # the key is not in the firmware distrubuted to the participante they need to calcualte it from the provided power traces
-from scipy import stats
-import numpy as np
-
-
-
-
-def correlation_power_analysis(sbox):
-    traces = np.load('traces.npy')
-    textin = np.load('plaintext.npy') 
-    key_num = 256
-    trace_num = np.shape(traces)[0]
-    sample_num = np.shape(traces)[1]
-    key_size = 16
-    correct_key = []
-
-
-    for i in range(key_size): 
-        print(f"Analyzing the {i}th key byte ...")
-        # calculate all possible sbox values for all possible keys for a specific byte in all input
-        data_in = [x[i] for x in textin]
-        intermedia_values = np.zeros([trace_num,key_num],dtype=np.uint8)
-        for y in range(len(data_in)) :
-            for x in range(key_num):
-                intermedia_values[y,x] = sbox[data_in[y] ^ x]
-
-        # calculate the power model .i.e Hamming Weight value for all intermediate_values
-        Hammin_Weight = np.zeros([trace_num,key_num],dtype=np.uint8)
-        for y in range(len(data_in)) :
-            for x in range(key_num):
-                Hammin_Weight[y,x] = bin(intermedia_values[y,x]).count('1')
-
-       # calculate the power correlation factor using Pearson method
-        correlation = np.zeros([key_num,sample_num],dtype=np.float32)
-        for x in range(key_num):
-            for y in range(sample_num):
-                correlation[x,y] = abs(stats.pearsonr(Hammin_Weight[:,x],traces[:,y])[0])
-
-        best_guess = np.flip(np.argsort(np.amax(correlation,1)))[0]
-        print(f"the best guess for the {i}th key byte is {hex(best_guess)}")
-        correct_key.append(best_guess)
-
-    return correct_key
-
-
-# we can also deduce the decryption algorithem after studing the encryption algorithem
-def dec(data,key):    
-    # generate the inverse of the sbox
-    enc_flag = list(data)
-
-    inv_sbox = np.zeros(256,dtype=np.uint8)
-    for i in range(len(sbox)) :
-        inv_sbox[sbox[i]] = i
-
-
-    for i in range(8):
-        enc_flag_0 = enc_flag[0]
-        enc_flag[0] = enc_flag[1]
-        enc_flag[1] = enc_flag[2]
-        enc_flag[2] = enc_flag[3]
-        enc_flag[3] = enc_flag[4]
-        enc_flag[4] = enc_flag[5]
-        enc_flag[5] = enc_flag[6]
-        enc_flag[6] = enc_flag[7]
-        enc_flag[7] = enc_flag_0
-
-
-        enc_flag[8]  = key[8]  ^ inv_sbox[enc_flag[0]  ^ enc_flag[8]];
-        enc_flag[9]  = key[9]  ^ inv_sbox[enc_flag[1]  ^ enc_flag[9]];
-        enc_flag[10] = key[10] ^ inv_sbox[enc_flag[2]  ^ enc_flag[10]];
-        enc_flag[11] = key[11] ^ inv_sbox[enc_flag[3]  ^ enc_flag[11]];
-        enc_flag[12] = key[12] ^ inv_sbox[enc_flag[4]  ^ enc_flag[12]];
-        enc_flag[13] = key[13] ^ inv_sbox[enc_flag[5]  ^ enc_flag[13]];
-        enc_flag[14] = key[14] ^ inv_sbox[enc_flag[6]  ^ enc_flag[14]];
-        enc_flag[15] = key[15] ^ inv_sbox[enc_flag[7]  ^ enc_flag[15]];
-
-        enc_flag[0] = key[0] ^ inv_sbox[enc_flag[0]]
-        enc_flag[1] = key[1] ^ inv_sbox[enc_flag[1]]
-        enc_flag[2] = key[2] ^ inv_sbox[enc_flag[2]]
-        enc_flag[3] = key[3] ^ inv_sbox[enc_flag[3]]
-        enc_flag[4] = key[4] ^ inv_sbox[enc_flag[4]]
-        enc_flag[5] = key[5] ^ inv_sbox[enc_flag[5]]
-        enc_flag[6] = key[6] ^ inv_sbox[enc_flag[6]]
-        enc_flag[7] = key[7] ^ inv_sbox[enc_flag[7]]
-
-
-
-    return enc_flag
-
-# from reverse engineering the firmware we can find the sbox + encryption algorithem
-sbox = np.array([
+sbox = [
     0x8C , 0x5A , 0x00 , 0xBF ,
 0xC8 , 0xAF , 0x55 , 0x35 ,
 0xC6 , 0x50 , 0xD9 , 0x7F ,
@@ -155,10 +66,4 @@ sbox = np.array([
 0x44 , 0x49 , 0x33 , 0x7B ,
 0xF5 , 0xED , 0x57 , 0xC0 
 
-])
-key = correlation_power_analysis(sbox)
-
-f = open('encrypted_flag','rb')
-flag = f.read()
-flag = dec(flag,key)
-print(f"The Decrypted Flag is : {''.join([chr(i) for i in flag])}")
+]
